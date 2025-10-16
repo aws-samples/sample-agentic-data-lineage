@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+**/__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Terraform
+.terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+
+# Else
+.idea
+.vscode/settings.json
+*.DS_Store

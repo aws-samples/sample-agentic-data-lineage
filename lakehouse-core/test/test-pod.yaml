@@ -1,0 +1,32 @@
+# test-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  labels:
+    app: test-pod
+spec:
+  # nodeSelector:
+  #   karpenter.sh/nodepool: common-nodepool   # Specify your NodePool name
+  containers:
+  - name: test-container
+    image: public.ecr.aws/sam/build-python3.13:latest
+    # Keep container running so you can exec into it
+    command: ["/bin/bash"]
+    args: ["-c", "while true; do sleep 30; done"]
+    resources:
+      requests:
+        cpu: "4"
+        memory: "16Gi"
+    # Add some useful environment variables
+    env:
+    - name: TERM
+      value: "xterm"
+    # Mount /tmp directory for temporary file operations
+    volumeMounts:
+    - name: tmp-volume
+      mountPath: /tmp
+  volumes:
+  - name: tmp-volume
+    emptyDir: {}
+  restartPolicy: Never

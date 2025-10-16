@@ -1,0 +1,25 @@
+
+# Dbt
+dbt_redshift_openlineage/target/
+dbt_redshift_openlineage/dbt_packages/
+dbt_redshift_openlineage/logs/
+dbt_redshift_openlineage/profiles.yml
+
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Environment variables
+.env
+
+# Else
+.idea
+.vscode/settings.json
+*.DS_Store

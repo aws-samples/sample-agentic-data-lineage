@@ -1,0 +1,10 @@
+[default]
+# Redshift配置
+REDSHIFT_HOST = "lh-core-redshift-kolya.cyzhz01vtrt2.us-west-2.redshift.amazonaws.com"
+REDSHIFT_PORT = 5439
+REDSHIFT_DATABASE = "testdb"
+
+# Bedrock配置
+BEDROCK_MODEL_ID = "us.anthropic.claude-sonnet-4-20250514-v1:0"
+BEDROCK_REGION = "us-west-2"
+BEDROCK_MAX_TOKENS = 4000

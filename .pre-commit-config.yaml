@@ -1,0 +1,52 @@
+repos:
+# Basic file checks
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
+  - id: check-yaml
+    args: ['--allow-multiple-documents']
+  - id: check-json
+  - id: check-merge-conflict
+  - id: detect-private-key
+
+# Terraform formatting
+- repo: https://github.com/antonbabenko/pre-commit-terraform
+  rev: v1.99.0
+  hooks:
+  - id: terraform_fmt
+    files: \.(tf|tfvars)$
+
+# Python code formatting
+- repo: https://github.com/psf/black
+  rev: 24.10.0
+  hooks:
+  - id: black
+    files: ^(glue-openlineage|lakehouse-core|redshift-enternal-tables-auto-creation|dbt-redshift-openlineage|marquez-agents|marquez-mcp)/.*\.py$
+
+- repo: https://github.com/pycqa/isort
+  rev: 5.13.2
+  hooks:
+  - id: isort
+    files: ^(glue-openlineage|lakehouse-core|redshift-enternal-tables-auto-creation|dbt-redshift-openlineage|marquez-agents|marquez-mcp)/.*\.py$
+    args: ["--profile", "black"]
+
+# Python code quality
+- repo: https://github.com/pycqa/flake8
+  rev: 7.1.1
+  hooks:
+  - id: flake8
+    files: ^(glue-openlineage|lakehouse-core|redshift-enternal-tables-auto-creation|dbt-redshift-openlineage|marquez-agents|marquez-mcp)/.*\.py$
+    args:
+      - --max-line-length=88
+      - --ignore=E501,W503
+      - --select=E,W,F
+
+# Secret detection
+- repo: https://github.com/Yelp/detect-secrets
+  rev: v1.5.0
+  hooks:
+  - id: detect-secrets
+    args: ['--baseline', '.secrets.baseline']
+    exclude: ^(\.venv/|venv/|\.terraform/|.*\.lock$|.*\.template$|.*README\.md$)

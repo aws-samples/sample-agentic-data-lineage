@@ -1,0 +1,10 @@
+# Example terraform.tfvars file
+# Copy this to terraform.tfvars and update with your values
+# Or use the generate_tfvars.sh script to auto-generate from AWS profile
+
+# These will be auto-detected from your AWS profile if not specified
+account = ""  # Leave empty to auto-detect from AWS profile
+region  = ""  # Leave empty to auto-detect from AWS profile
+
+# Optional overrides
+# s3_endpoint = "s3.us-west-2.amazonaws.com"

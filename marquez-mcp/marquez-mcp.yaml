@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marquez-mcp
+  namespace: marquez
+  labels:
+    app: marquez-mcp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: marquez-mcp
+  template:
+    metadata:
+      labels:
+        app: marquez-mcp
+    spec:
+      nodeSelector:
+        karpenter.sh/nodepool: common-nodepool
+      containers:
+      - name: marquez-mcp
+        image: public.ecr.aws/f9c0z1d3/marquez-mcp:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: MARQUEZ_OPENAPI_URL
+          value: "https://raw.githubusercontent.com/MarquezProject/marquez/main/spec/openapi.yml"
+        - name: MARQUEZ_API_BASE_URL
+          value: "https://demo.marquez.io/api/v1"
+        - name: TRANSPORT
+          value: "streamable-http"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: marquez-mcp-service
+  namespace: marquez
+spec:
+  selector:
+    app: marquez-mcp
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: marquez-mcp
+  namespace: marquez
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/load-balancer-name: marquez-mcp-alb
+    alb.ingress.kubernetes.io/group.name: "marquez-mcp-alb"
+    # 使用 HTTP 健康检查
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
+spec:
+  ingressClassName: alb
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: marquez-mcp-service
+            port:
+              number: 80

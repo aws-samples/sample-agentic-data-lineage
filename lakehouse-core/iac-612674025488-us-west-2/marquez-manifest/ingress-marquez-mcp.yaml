@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: marquez-mcp
+  namespace: marquez
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/load-balancer-name: marquez-mcp-alb
+    alb.ingress.kubernetes.io/group.name: "marquez-mcp-alb"
+    alb.ingress.kubernetes.io/inbound-cidrs: "${inbound_cidrs}"
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: marquez-mcp
+                port:
+                  number: 80

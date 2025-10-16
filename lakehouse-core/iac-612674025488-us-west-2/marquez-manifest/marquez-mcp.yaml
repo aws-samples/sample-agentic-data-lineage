@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marquez-mcp
+  namespace: marquez
+  labels:
+    app: marquez-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: marquez-mcp
+  template:
+    metadata:
+      labels:
+        app: marquez-mcp
+    spec:
+      nodeSelector:
+        karpenter.sh/nodepool: common-nodepool
+      containers:
+      - name: marquez-mcp
+        # image: public.ecr.aws/f9c0z1d3/marquez-mcp:latest
+        image: ${ecr_repository_url}/marquez-mcp:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: MARQUEZ_OPENAPI_URL
+          value: "https://raw.githubusercontent.com/MarquezProject/marquez/main/spec/openapi.yml"
+        - name: MARQUEZ_API_BASE_URL
+          value: "http://marquez.marquez.svc.cluster.local/api/v1"
+        - name: TRANSPORT
+          value: "streamable-http"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          tcpSocket:
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          failureThreshold: 3

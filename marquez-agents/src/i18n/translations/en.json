@@ -1,0 +1,52 @@
+{
+  "app": {
+    "title": "🏛️ Agentic Lineage",
+    "subtitle": "Intelligent Data Lineage Analysis System - Multi-Agent Architecture",
+    "starting": "🚀 Starting Agentic Lineage For Lakehouse (Web Interface)",
+    "access_url": "📍 Access URL: http://localhost:8504",
+    "web_interface": "🌐 ChatGPT-style Web Interface",
+    "multi_agent": "🤖 Multi-Agent Collaboration Support",
+    "stopped": "👋 Application stopped",
+    "start_failed": "❌ Startup failed: {error}"
+  },
+  "system": {
+    "initializing": "🔧 Initializing multi-agent system...",
+    "init_success": "✅ System initialization completed!",
+    "init_failed": "❌ System initialization failed: {error}",
+    "running": "🟢 System running",
+    "initializing_status": "⏳ Initializing...",
+    "agent_count": "🤖 Agent count: {count}",
+    "current_agent": "🤖 Current agent: {agent}",
+    "status": "🔧 Status: {status}",
+    "not_initialized": "❌ System not initialized, please wait for system startup to complete."
+  },
+  "ui": {
+    "system_status": "📊 System Status",
+    "tool_calls_history": "🔧 Tool Call History",
+    "clear_chat": "🗑️ Clear Chat",
+    "reinit_system": "🔄 Reinitialize",
+    "chat_input_placeholder": "Please enter your question...",
+    "timestamp": "Time: {time}",
+    "thinking": "🤔 {agent} agent is thinking...",
+    "agent_reply": "💡 {agent} agent reply:",
+    "agent_reply_label": "**{agent} agent reply:**",
+    "processing_error": "❌ Error processing request: {error}",
+    "retry_message": "Please try rephrasing your question.",
+    "language_selector": "🌐 Language"
+  },
+  "agents": {
+    "orchestrator": "Orchestrator",
+    "metadata": "Metadata",
+    "lineage": "Lineage",
+    "datacatalog": "Data Catalog",
+    "specialist": "Specialist",
+    "language_updated": "Agent language updated to English",
+    "language_update_failed": "Failed to update agent language"
+  },
+  "errors": {
+    "import_error": "❌ Import error: {error}",
+    "install_dependencies": "Please ensure all dependencies are installed",
+    "startup_failed": "❌ System startup failed: {error}",
+    "check_config": "Please check configuration files and network connection"
+  }
+}

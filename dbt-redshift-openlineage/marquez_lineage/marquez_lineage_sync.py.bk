@@ -1,0 +1,686 @@
+#!/usr/bin/env python3
+"""
+Marquez Column Lineage Sync Script
+
+This script reads the colibri manifest and creates column lineage events
+in Marquez using the OpenLineage standard format.
+"""
+
+import json
+import logging
+import os
+import re
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+from urllib.parse import quote
+
+import requests
+import yaml
+
+
+def load_config(config_path: str = "marquez_config.yaml") -> Dict[str, Any]:
+    """Load configuration from YAML file"""
+    try:
+        with open(config_path, "r") as f:
+            return yaml.safe_load(f)
+    except FileNotFoundError:
+        # Fallback to default configuration
+        return {
+            "marquez": {"url": "http://marquez-web.kolya.fun"},
+            "paths": {
+                "manifest": "dbt_redshift_openlineage/dist/colibri-manifest.json"
+            },
+            "openlineage": {
+                "producer": "dbt_redshift_openlineage_converter",
+                "root_namespace": "s3://lh-core-kolya-landing-zone",
+                "source_name": "dbt-redshift",
+            },
+            "logging": {"level": "INFO"},
+        }
+
+
+# Load configuration
+config = load_config()
+
+# Configuration variables
+MARQUEZ_URL = config["marquez"]["url"]
+MANIFEST_PATH = config["paths"]["manifest"]
+PRODUCER = config["openlineage"]["producer"]
+ROOT_NAMESPACE = config["openlineage"]["root_namespace"]
+SOURCE_NAME = config["openlineage"]["source_name"]
+
+# Setup logging
+log_level = getattr(logging, config["logging"]["level"].upper())
+logging.basicConfig(level=log_level)
+logger = logging.getLogger(__name__)
+
+
+class MarquezLineageSync:
+    def __init__(self, marquez_url: str, manifest_path: str):
+        self.marquez_url = marquez_url.rstrip("/")
+        self.manifest_path = manifest_path
+        self.manifest = None
+        self.session = requests.Session()
+
+    def create_source(
+        self, source_name: str, namespace: str, description: str = None
+    ) -> bool:
+        """Create a data source in Marquez
+
+        Args:
+            source_name: Name of the data source
+            namespace: Namespace for the source
+            description: Optional description
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        encoded_source_name = quote(source_name, safe="")
+        url = f"{self.marquez_url}/api/v1/sources/{encoded_source_name}"
+
+        # Get Redshift host from environment variable, fallback to default
+        redshift_host = os.getenv("REDSHIFT_HOST", "redshift-cluster")
+        # Extract just the hostname part (remove port if present)
+        if ":" in redshift_host:
+            redshift_host = redshift_host.split(":")[0]
+
+        payload = {
+            "type": "REDSHIFT",  # Use REDSHIFT for redshift-external source
+            "connectionUrl": f"redshift://{redshift_host}:5439/{source_name}",
+            "description": description or f"{source_name} data source",
+        }
+
+        try:
+            response = self.session.put(url, json=payload)
+            response.raise_for_status()
+            logger.info(f"✅ Source created successfully: {source_name}")
+            return True
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Failed to create source: {e}")
+            if hasattr(e, "response") and e.response is not None:
+                logger.error(f"Response content: {e.response.text}")
+            return False
+
+    def create_dataset(
+        self,
+        namespace: str,
+        dataset_name: str,
+        dataset_type: str = "DB_TABLE",
+        physical_name: str = None,
+        source_name: str = None,
+        fields: List[Dict[str, str]] = None,
+        description: str = None,
+    ) -> Dict[str, Any]:
+        """Create dataset with specified source name
+
+        This is useful to explicitly set the sourceName to 'dbt-redshift'
+        so datasets are properly categorized in Marquez.
+        """
+        # Ensure data source exists first
+        if source_name and not self.create_source(
+            source_name, namespace, f"{source_name} data source"
+        ):
+            raise ValueError(f"Unable to create data source: {source_name}")
+
+        # URL encode namespace and dataset name
+        encoded_namespace = quote(namespace, safe="")
+        encoded_dataset_name = quote(dataset_name, safe="")
+        url = (
+            f"{self.marquez_url}/api/v1/namespaces/{encoded_namespace}/"
+            f"datasets/{encoded_dataset_name}"
+        )
+
+        payload = {
+            "type": dataset_type,
+            "physicalName": physical_name or dataset_name,
+            "sourceName": source_name or "default",
+        }
+
+        if fields:
+            payload["fields"] = fields
+        if description:
+            payload["description"] = description
+
+        try:
+            response = self.session.put(url, json=payload)
+            response.raise_for_status()
+            logger.info(
+                f"✅ Dataset created successfully: {namespace}.{dataset_name} with source: {payload['sourceName']}"
+            )
+            return response.json() if response.text else {"status": "success"}
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Failed to create dataset: {e}")
+            if hasattr(e, "response") and e.response is not None:
+                logger.error(f"Response content: {e.response.text}")
+            raise
+
+    def delete_dataset(self, namespace: str, dataset_name: str) -> bool:
+        """Delete a dataset from Marquez
+
+        Args:
+            namespace: Namespace name
+            dataset_name: Dataset name
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        # URL encode namespace and dataset name
+        encoded_namespace = quote(namespace, safe="")
+        encoded_dataset_name = quote(dataset_name, safe="")
+        url = (
+            f"{self.marquez_url}/api/v1/namespaces/{encoded_namespace}/"
+            f"datasets/{encoded_dataset_name}"
+        )
+
+        try:
+            response = self.session.delete(url)
+            response.raise_for_status()
+            logger.info(f"✅ Dataset deleted successfully: {namespace}.{dataset_name}")
+            return True
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Failed to delete dataset: {e}")
+            if hasattr(e, "response") and e.response is not None:
+                logger.error(f"Response content: {e.response.text}")
+            return False
+
+    def load_manifest(self) -> Dict[str, Any]:
+        """Load the colibri manifest file"""
+        try:
+            with open(self.manifest_path, "r") as f:
+                self.manifest = json.load(f)
+            logger.info(
+                f"Loaded manifest with {len(self.manifest.get('nodes', {}))} nodes"
+            )
+            return self.manifest
+        except Exception as e:
+            logger.error(f"Failed to load manifest: {e}")
+            raise
+
+    def get_namespace_for_node(self, node_id: str) -> str:
+        """Get namespace for a node, hardcoding spectrum_iceberg_db sources"""
+        if "spectrum_iceberg_db" in node_id:
+            return ROOT_NAMESPACE
+        return ROOT_NAMESPACE  # Use same namespace for all datasets
+
+    def build_dataset_name(self, node_info: Dict[str, Any]) -> str:
+        """Build dataset name in database.schema.name format"""
+        return f"{node_info.get('database', '')}.{node_info.get('schema', '')}.{node_info.get('name', '')}"
+
+    def create_schema_fields(self, columns: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Convert colibri columns to OpenLineage schema fields"""
+        fields = []
+        for col_name, col_info in columns.items():
+            field = {
+                "name": col_name,
+                "type": col_info.get("dataType", "string"),
+                "description": col_info.get("description", ""),
+            }
+            fields.append(field)
+        return fields
+
+    def build_column_lineage_from_edges(self, target_node_id: str) -> Dict[str, Any]:
+        """Build column lineage mapping from lineage edges"""
+        column_lineage = {}
+
+        if not self.manifest or "lineage" not in self.manifest:
+            return column_lineage
+
+        edges = self.manifest["lineage"].get("edges", [])
+
+        for edge in edges:
+            if edge["target"] == target_node_id:
+                target_column = edge["targetColumn"]
+                source_node = edge["source"]
+                source_column = edge["sourceColumn"]
+
+                # Skip edges with empty target columns
+                if not target_column or target_column.strip() == "":
+                    continue
+
+                # Get source node info
+                source_node_info = self.manifest["nodes"].get(source_node, {})
+                source_namespace = self.get_namespace_for_node(source_node)
+                source_dataset_name = self.build_dataset_name(source_node_info)
+
+                # Handle wildcard columns
+                if source_column == "*":
+                    # For wildcard, we need to infer the mapping based on the transformation
+                    # Look at the compiled code to understand the mapping
+                    target_node_info = self.manifest["nodes"].get(target_node_id, {})
+                    compiled_code = target_node_info.get("compiledCode", "")
+
+                    # Try to infer the source column from the transformation
+                    # For example: "id as customer_id" -> id maps to customer_id
+                    inferred_source_column = self._infer_source_column(
+                        target_column, compiled_code, source_node_info
+                    )
+
+                    if inferred_source_column:
+                        input_fields = [
+                            {
+                                "namespace": source_namespace,
+                                "name": source_dataset_name,
+                                "field": inferred_source_column,
+                            }
+                        ]
+                    else:
+                        # Fallback: assume same column name exists in source
+                        source_columns = list(
+                            source_node_info.get("columns", {}).keys()
+                        )
+                        if target_column in source_columns:
+                            input_fields = [
+                                {
+                                    "namespace": source_namespace,
+                                    "name": source_dataset_name,
+                                    "field": target_column,
+                                }
+                            ]
+                        else:
+                            input_fields = []
+                else:
+                    input_fields = [
+                        {
+                            "namespace": source_namespace,
+                            "name": source_dataset_name,
+                            "field": source_column,
+                        }
+                    ]
+
+                if target_column not in column_lineage:
+                    column_lineage[target_column] = {
+                        "inputFields": [],
+                        "transformationDescription": "",
+                        "transformationType": "IDENTITY",
+                    }
+
+                column_lineage[target_column]["inputFields"].extend(input_fields)
+
+        return column_lineage
+
+    def _infer_source_column(
+        self, target_column: str, compiled_code: str, source_node_info: Dict[str, Any]
+    ) -> Optional[str]:
+        """Infer source column name from compiled SQL code"""
+        if not compiled_code:
+            return None
+
+        # Common patterns to look for:
+        # "id as customer_id" -> id maps to customer_id
+        # "user_id as customer_id" -> user_id maps to customer_id
+
+        # Pattern 1: "source_col as target_col"
+        pattern1 = rf"(\w+)\s+as\s+{re.escape(target_column)}\b"
+        match = re.search(pattern1, compiled_code, re.IGNORECASE)
+        if match:
+            source_col = match.group(1)
+            # If source has column info, verify it exists
+            source_columns = source_node_info.get("columns", {})
+            if source_columns and source_col in source_columns:
+                return source_col
+            elif not source_columns:
+                # If source has no column info, trust the SQL pattern
+                return source_col
+
+        # Pattern 2: Check if target column exists directly in source
+        source_columns = source_node_info.get("columns", {})
+        if source_columns and target_column in source_columns:
+            return target_column
+
+        # Pattern 3: Look for common mappings
+        common_mappings = {
+            "customer_id": ["id", "user_id", "cust_id"],
+            "order_id": ["id"],
+            "payment_id": ["id"],
+        }
+
+        if target_column in common_mappings:
+            for potential_source in common_mappings[target_column]:
+                if source_columns and potential_source in source_columns:
+                    return potential_source
+                elif not source_columns:
+                    # If no source column info, use the first common mapping
+                    return common_mappings[target_column][0]
+
+        # Pattern 4: Fallback - if no source column info and no AS clause, assume same name
+        if not source_columns and target_column not in [
+            "customer_id",
+            "order_id",
+            "payment_id",
+        ]:
+            return target_column
+
+        return None
+
+    def create_openlineage_event(
+        self, node_id: str, node_info: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Create OpenLineage event for a node"""
+
+        # Skip source nodes as they don't have transformations
+        if node_info.get("nodeType") == "source":
+            return None
+
+        # Generate event metadata
+        event_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        run_id = str(uuid.uuid4())
+        job_name = f"dbt_run_{node_info.get('name', 'unknown')}"
+
+        # Get node details
+        target_namespace = self.get_namespace_for_node(node_id)
+        target_dataset_name = self.build_dataset_name(node_info)
+
+        # Build column lineage
+        column_lineage = self.build_column_lineage_from_edges(node_id)
+
+        # Create schema fields for target
+        target_fields = self.create_schema_fields(node_info.get("columns", {}))
+
+        # Build inputs from refs and sources
+        inputs = []
+
+        # Add referenced models
+        for ref in node_info.get("refs", []):
+            ref_node_id = (
+                f"model.{self.manifest['metadata']['dbt_project_name']}.{ref['name']}"
+            )
+            ref_node_info = self.manifest["nodes"].get(ref_node_id, {})
+            if ref_node_info:
+                input_namespace = self.get_namespace_for_node(ref_node_id)
+                input_dataset_name = self.build_dataset_name(ref_node_info)
+                input_fields = self.create_schema_fields(
+                    ref_node_info.get("columns", {})
+                )
+
+                inputs.append(
+                    {
+                        "namespace": input_namespace,
+                        "name": input_dataset_name,
+                        "facets": {
+                            "schema": {
+                                "_producer": PRODUCER,
+                                "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SchemaDatasetFacet.json",
+                                "fields": input_fields,
+                            }
+                        },
+                    }
+                )
+
+        # Add source dependencies (find sources used by this model)
+        for edge in self.manifest.get("lineage", {}).get("edges", []):
+            if edge["target"] == node_id:
+                source_node_id = edge["source"]
+                source_node_info = self.manifest["nodes"].get(source_node_id, {})
+
+                if source_node_info.get("nodeType") == "source":
+                    source_namespace = self.get_namespace_for_node(source_node_id)
+                    source_dataset_name = self.build_dataset_name(source_node_info)
+                    source_fields = self.create_schema_fields(
+                        source_node_info.get("columns", {})
+                    )
+
+                    # Check if this input is already added
+                    input_exists = any(
+                        inp["namespace"] == source_namespace
+                        and inp["name"] == source_dataset_name
+                        for inp in inputs
+                    )
+
+                    if not input_exists:
+                        inputs.append(
+                            {
+                                "namespace": source_namespace,
+                                "name": source_dataset_name,
+                                "facets": {
+                                    "schema": {
+                                        "_producer": PRODUCER,
+                                        "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SchemaDatasetFacet.json",
+                                        "fields": source_fields,
+                                    }
+                                },
+                            }
+                        )
+
+        # Build the OpenLineage event
+        event = {
+            "eventType": "COMPLETE",
+            "eventTime": event_time,
+            "run": {"runId": run_id},
+            "job": {"namespace": target_namespace, "name": job_name, "facets": {}},
+            "inputs": inputs,
+            "outputs": [
+                {
+                    "namespace": target_namespace,
+                    "name": target_dataset_name,
+                    "facets": {
+                        "schema": {
+                            "_producer": PRODUCER,
+                            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SchemaDatasetFacet.json",
+                            "fields": target_fields,
+                        }
+                    },
+                }
+            ],
+            "producer": PRODUCER,
+        }
+
+        # Add column lineage facets if available
+        if column_lineage:
+            # Add to job facets
+            event["job"]["facets"]["columnLineage"] = {
+                "_producer": PRODUCER,
+                "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/ColumnLineageJobFacet.json",
+                "fields": column_lineage,
+            }
+
+            # Add to output dataset facets
+            event["outputs"][0]["facets"]["columnLineage"] = {
+                "_producer": PRODUCER,
+                "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/ColumnLineageDatasetFacet.json",
+                "fields": column_lineage,
+            }
+
+        return event
+
+    def send_event_to_marquez(self, event: Dict[str, Any]) -> bool:
+        """Send OpenLineage event to Marquez"""
+        # Pre-create output datasets with explicit sourceName='dbt-redshift'
+        # This ensures proper categorization in Marquez
+        try:
+            # Extract and create output dataset with dbt-redshift source
+            if event.get("outputs") and len(event["outputs"]) > 0:
+                output = event["outputs"][0]
+                target_namespace = output["namespace"]
+                target_dataset = output["name"]
+                target_fields = output["facets"]["schema"]["fields"]
+
+                # Parse dataset name to get components
+                dataset_parts = target_dataset.split(".")
+                if len(dataset_parts) >= 3:
+                    redshift_database = dataset_parts[0]
+                    redshift_schema = dataset_parts[1]
+                    table_name = dataset_parts[2]
+                else:
+                    redshift_database = "unknown"
+                    redshift_schema = "unknown"
+                    table_name = target_dataset
+
+                # Convert fields format (reuse existing method)
+                dataset_fields = [
+                    {"name": field["name"], "type": field["type"]}
+                    for field in target_fields
+                ]
+
+                # Create target dataset with dbt-redshift source
+                self.create_dataset(
+                    namespace=target_namespace,
+                    dataset_name=target_dataset,
+                    dataset_type="DB_TABLE",
+                    physical_name=f"{redshift_database}.{redshift_schema}.{table_name}",
+                    source_name=SOURCE_NAME,
+                    fields=dataset_fields,
+                    description=f"dbt model: {redshift_schema}.{table_name}",
+                )
+        except Exception as e:
+            logger.warning(f"Dataset pre-creation warning: {e}")
+
+        # Send OpenLineage event
+        try:
+            url = f"{self.marquez_url}/api/v1/lineage"
+            headers = {"Content-Type": "application/json"}
+
+            response = requests.post(url, json=event, headers=headers)
+
+            if response.status_code == 201:
+                logger.info(f"Successfully sent event for job: {event['job']['name']}")
+                return True
+            else:
+                logger.error(
+                    f"Failed to send event. Status: {response.status_code}, Response: {response.text}"
+                )
+                return False
+
+        except Exception as e:
+            logger.error(f"Error sending event to Marquez: {e}")
+            return False
+
+    def sync_all_lineage(self) -> None:
+        """Sync all model lineage to Marquez"""
+        if not self.manifest:
+            self.load_manifest()
+
+        nodes = self.manifest.get("nodes", {})
+        success_count = 0
+        total_count = 0
+
+        for node_id, node_info in nodes.items():
+            # Only process models (skip sources)
+            if node_info.get("nodeType") == "model":
+                total_count += 1
+                logger.info(f"Processing node: {node_id}")
+
+                event = self.create_openlineage_event(node_id, node_info)
+                if event:
+                    if self.send_event_to_marquez(event):
+                        success_count += 1
+                    else:
+                        logger.error(f"Failed to sync lineage for {node_id}")
+                else:
+                    logger.warning(f"No event created for {node_id}")
+
+        logger.info(
+            f"Sync completed: {success_count}/{total_count} events sent successfully"
+        )
+
+    def sync_single_model(self, model_name: str) -> bool:
+        """Sync lineage for a single model"""
+        if not self.manifest:
+            self.load_manifest()
+
+        # Find the model node
+        model_node_id = None
+        for node_id, node_info in self.manifest.get("nodes", {}).items():
+            if (
+                node_info.get("nodeType") == "model"
+                and node_info.get("name") == model_name
+            ):
+                model_node_id = node_id
+                break
+
+        if not model_node_id:
+            logger.error(f"Model '{model_name}' not found in manifest")
+            return False
+
+        node_info = self.manifest["nodes"][model_node_id]
+        event = self.create_openlineage_event(model_node_id, node_info)
+
+        if event:
+            return self.send_event_to_marquez(event)
+        else:
+            logger.error(f"Failed to create event for model '{model_name}'")
+            return False
+
+
+def main():
+    """Main function to run the lineage sync"""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Sync dbt lineage to Marquez")
+    parser.add_argument("--model", help="Sync specific model only")
+    parser.add_argument(
+        "--manifest", default=MANIFEST_PATH, help="Path to colibri manifest file"
+    )
+    parser.add_argument("--marquez-url", default=MARQUEZ_URL, help="Marquez URL")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print events without sending"
+    )
+    parser.add_argument("--delete-dataset", help="Delete specific dataset name")
+    parser.add_argument(
+        "--delete-namespace",
+        help="Namespace for dataset deletion (use with --delete-dataset)",
+    )
+
+    args = parser.parse_args()
+
+    syncer = MarquezLineageSync(args.marquez_url, args.manifest)
+
+    # Handle delete operations
+    if args.delete_dataset:
+        try:
+            if not args.delete_namespace:
+                logger.error(
+                    "--delete-namespace is required when using --delete-dataset"
+                )
+                return
+            success = syncer.delete_dataset(args.delete_namespace, args.delete_dataset)
+            if success:
+                logger.info("Dataset deletion completed successfully")
+            else:
+                logger.error("Dataset deletion failed")
+        except Exception as e:
+            logger.error(f"Delete dataset failed: {e}")
+        return
+
+    try:
+        syncer.load_manifest()
+
+        if args.model:
+            logger.info(f"Syncing single model: {args.model}")
+            if args.dry_run:
+                node_id = f"model.{syncer.manifest['metadata']['dbt_project_name']}.{args.model}"
+                node_info = syncer.manifest.get("nodes", {}).get(node_id)
+                if node_info:
+                    event = syncer.create_openlineage_event(node_id, node_info)
+                    if event:
+                        print(json.dumps(event, indent=2))
+                    else:
+                        logger.error("No event created")
+                else:
+                    logger.error(f"Model {args.model} not found")
+            else:
+                success = syncer.sync_single_model(args.model)
+                if success:
+                    logger.info("Single model sync completed successfully")
+                else:
+                    logger.error("Single model sync failed")
+        else:
+            logger.info("Syncing all models")
+            if args.dry_run:
+                for node_id, node_info in syncer.manifest.get("nodes", {}).items():
+                    if node_info.get("nodeType") == "model":
+                        event = syncer.create_openlineage_event(node_id, node_info)
+                        if event:
+                            print(f"--- Event for {node_id} ---")
+                            print(json.dumps(event, indent=2))
+                            print()
+            else:
+                syncer.sync_all_lineage()
+
+    except Exception as e:
+        logger.error(f"Sync failed: {e}")
+        raise
+
+
+if __name__ == "__main__":
+    main()

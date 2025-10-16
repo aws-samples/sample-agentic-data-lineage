@@ -1,0 +1,98 @@
+[project]
+name = "strands-multi-agents"
+version = "0.1.0"
+description = "AWS Strands Multi-Agents System for data lineage management and metadata analysis"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "strands-agents>=1.0.0",
+    "dynaconf>=3.2.0",
+    "boto3>=1.26.0",
+    "psycopg2-binary>=2.9.0",
+
+    "requests>=2.31.0",
+    "pydantic>=2.0.0",
+    "mcp>=1.0.0",
+    "streamlit>=1.28.0",
+    "pytz>=2023.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "pytest>=7.0.0",
+    "pytest-mock>=3.10.0",
+    "pytest-asyncio>=0.21.0"
+]
+
+[project.scripts]
+strands-multi-agents = "multi_agent_system:main"
+test-system = "test_system:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+    "W293",  # blank line contains whitespace (handled by black)
+    "B007",  # loop control variable not used (sometimes intentional)
+    "E402",  # module level import not at top of file (needed for path setup)
+]
+
+[dependency-groups]
+dev = [
+    "autoflake>=2.3.1",
+    "black>=25.9.0",
+    "isort>=6.0.1",
+    "pre-commit>=4.3.0",
+    "ruff>=0.13.1",
+]
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["src"]
+
+[tool.autoflake]
+remove-all-unused-imports = true
+remove-unused-variables = true
+remove-duplicate-keys = true
+ignore-init-module-imports = true

@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marquez-agent
+  namespace: marquez
+  labels:
+    app: marquez-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: marquez-agent
+  template:
+    metadata:
+      labels:
+        app: marquez-agent
+    spec:
+      serviceAccountName: marquez-agent-sa
+      nodeSelector:
+        karpenter.sh/nodepool: common-nodepool
+      containers:
+      - name: marquez-agent
+        # image: public.ecr.aws/f9c0z1d3/marquez-agent:latest
+        image: ${ecr_repository_url}/marquez-agent:latest
+        ports:
+        - containerPort: 8504
+          name: http
+        env:
+        # Get configuration from ConfigMap
+        - name: ENV_FOR_DYNACONF
+          valueFrom:
+            configMapKeyRef:
+              name: marquez-agent-config
+              key: ENV_FOR_DYNACONF
+        - name: PYTHONPATH
+          valueFrom:
+            configMapKeyRef:
+              name: marquez-agent-config
+              key: PYTHONPATH
+        - name: PYTHONUNBUFFERED
+          valueFrom:
+            configMapKeyRef:
+              name: marquez-agent-config
+              key: PYTHONUNBUFFERED
+        - name: REDSHIFT_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: marquez-agent-config
+              key: REDSHIFT_HOST
+        - name: REDSHIFT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: marquez-agent-config
+              key: REDSHIFT_PORT
+        - name: REDSHIFT_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: marquez-agent-config
+              key: REDSHIFT_DATABASE
+
+        - name: MARQUEZ_MCP_URL
+          valueFrom:
+            configMapKeyRef:
+              name: marquez-agent-config
+              key: MARQUEZ_MCP_URL
+        - name: BEDROCK_MODEL_ID
+          valueFrom:
+            configMapKeyRef:
+              name: marquez-agent-config
+              key: BEDROCK_MODEL_ID
+        - name: BEDROCK_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: marquez-agent-config
+              key: BEDROCK_REGION
+        - name: BEDROCK_MAX_TOKENS
+          valueFrom:
+            configMapKeyRef:
+              name: marquez-agent-config
+              key: BEDROCK_MAX_TOKENS
+
+        # Get sensitive information from Secret
+        - name: DYNACONF_REDSHIFT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: marquez-agent-secrets
+              key: REDSHIFT_USERNAME
+              optional: true
+        - name: DYNACONF_REDSHIFT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: marquez-agent-secrets
+              key: REDSHIFT_PASSWORD
+              optional: true
+
+        # Resource limits
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+
+        # Health check - use TCP check since Streamlit doesn't have dedicated health check endpoint
+        livenessProbe:
+          tcpSocket:
+            port: 8504
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+
+        readinessProbe:
+          tcpSocket:
+            port: 8504
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000

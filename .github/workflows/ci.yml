@@ -1,0 +1,136 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  code_quality:
+    name: Code Quality and Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run Python code quality checks
+        run: |
+          echo "Running Python code quality checks..."
+          # Run checks without modifying files (check-only mode)
+          pre-commit run black --all-files --show-diff-on-failure || echo "Black formatting issues found"
+          pre-commit run isort --all-files --show-diff-on-failure || echo "Import sorting issues found"
+          pre-commit run flake8 --all-files || echo "Flake8 issues found"
+          pre-commit run detect-secrets --all-files || echo "Secret detection issues found"
+          pre-commit run check-yaml --all-files || echo "YAML issues found"
+          pre-commit run check-json --all-files || echo "JSON issues found"
+          pre-commit run check-merge-conflict --all-files || echo "Merge conflict markers found"
+          pre-commit run detect-private-key --all-files || echo "Private key issues found"
+          echo "Skipping trailing-whitespace and end-of-file-fixer in CI to avoid file modifications"
+        continue-on-error: true
+
+  terraform_format:
+    name: Terraform Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for Terraform files
+        id: tf_check
+        run: |
+          if find . -name "*.tf" -type f | head -1 | grep -q .; then
+            echo "has_tf=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_tf=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Terraform
+        if: steps.tf_check.outputs.has_tf == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
+
+      - name: Set up Python for pre-commit
+        if: steps.tf_check.outputs.has_tf == 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install pre-commit
+        if: steps.tf_check.outputs.has_tf == 'true'
+        run: pip install pre-commit
+
+      - name: Run Terraform formatting
+        if: steps.tf_check.outputs.has_tf == 'true'
+        run: |
+          echo "Running Terraform formatting..."
+          pre-commit run terraform_fmt --all-files
+        continue-on-error: true
+
+
+
+  secret_detection:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run GitLeaks (files only)
+        run: |
+          # Install gitleaks - get latest version dynamically
+          GITLEAKS_VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+          echo "Installing GitLeaks version: $GITLEAKS_VERSION"
+          wget -O gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION#v}_linux_x64.tar.gz"
+          tar -xzf gitleaks.tar.gz
+          chmod +x gitleaks
+          
+          # Scan current files only (not git history)
+          ./gitleaks detect --source . --no-git --verbose --config .gitleaks.toml
+
+  terraform_security:
+    name: Terraform Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for Terraform files
+        id: tf_check
+        run: |
+          if find . -name "*.tf" -type f | head -1 | grep -q .; then
+            echo "has_tf=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_tf=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Checkov (Critical Security Only)
+        if: steps.tf_check.outputs.has_tf == 'true'
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: terraform
+          quiet: true
+          soft_fail: true
+          # For POC: Skip all CKV2_AWS checks and focus only on secrets/credentials
+          skip_check: CKV2_AWS
+          check: CKV_AWS_20,CKV_AWS_21,CKV_AWS_40,CKV_AWS_41

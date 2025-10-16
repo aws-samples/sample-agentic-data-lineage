@@ -1,0 +1,21 @@
+# GitLeaks configuration file for POC project
+
+title = "GitLeaks Config for POC Project"
+
+# Allowlist for false positives in documentation and examples
+[allowlist]
+description = "Allowlist for example/demo credentials"
+paths = [
+    '''README\.md''',
+    '''.*example.*''',
+    '''.*demo.*''',
+    '''.*test.*''',
+    '''.*\.md$'''
+]
+
+regexes = [
+    '''cafebabe:deadbeef''',
+    '''8ae31cacf141669ddfb5da''',
+    '''BUNDLE_ENTERPRISE__CONTRIBSYS__COM''',
+    '''DB_PASSWORD=.*example'''
+]

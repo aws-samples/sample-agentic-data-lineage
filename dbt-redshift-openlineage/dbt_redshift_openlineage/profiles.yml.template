@@ -1,0 +1,15 @@
+dbt_redshift_openlineage:
+  target: dev
+  outputs:
+    dev:
+      type: redshift
+      host: "{{ env_var('REDSHIFT_HOST') }}"
+      user: "{{ env_var('REDSHIFT_USER') }}"
+      password: "{{ env_var('REDSHIFT_PASSWORD') }}"
+      port: 5439
+      dbname: "{{ env_var('REDSHIFT_DATABASE', 'dev') }}"
+      schema: "{{ env_var('REDSHIFT_SCHEMA', 'dbt_dev') }}"
+      threads: 4
+      keepalives_idle: 0
+      search_path: "{{ env_var('REDSHIFT_SEARCH_PATH', 'public') }}"
+      sslmode: require

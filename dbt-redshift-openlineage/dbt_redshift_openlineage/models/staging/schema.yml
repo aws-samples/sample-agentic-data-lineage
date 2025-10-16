@@ -1,0 +1,100 @@
+version: 2
+
+sources:
+  - name: spectrum_iceberg_db
+    description: "Redshift Spectrum Iceberg database"
+    database: testdb
+    schema: spectrum_iceberg_db
+    tables:
+      - name: customers
+        description: "Customer data from Iceberg table"
+        columns:
+          - name: id
+            description: "Customer ID"
+          - name: first_name
+            description: "Customer first name"
+          - name: last_name
+            description: "Customer last name"
+      - name: orders
+        description: "Order data from Iceberg table"
+        columns:
+          - name: id
+            description: "Order ID"
+          - name: user_id
+            description: "Customer ID who placed the order"
+          - name: order_date
+            description: "Date the order was placed"
+          - name: status
+            description: "Order status"
+      - name: payments
+        description: "Payment data from Iceberg table"
+        columns:
+          - name: id
+            description: "Payment ID"
+          - name: order_id
+            description: "Order ID this payment belongs to"
+          - name: payment_method
+            description: "Payment method used"
+          - name: amount
+            description: "Payment amount in cents"
+
+models:
+  - name: stg_customers
+    config:
+      schema: staging
+      materialized: table
+    description: "Staging table for customer data"
+    columns:
+      - name: customer_id
+        description: "Unique customer identifier"
+        tests:
+          - unique
+          - not_null
+      - name: first_name
+        description: "Customer first name"
+      - name: last_name
+        description: "Customer last name"
+
+  - name: stg_orders
+    config:
+      schema: staging
+      materialized: table
+    description: "Staging table for order data"
+    columns:
+      - name: order_id
+        description: "Unique order identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Customer who placed the order"
+      - name: order_date
+        description: "Date the order was placed"
+      - name: status
+        description: "Order status"
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['placed', 'shipped', 'completed', 'return_pending', 'returned']
+
+  - name: stg_payments
+    config:
+      schema: staging
+      materialized: table
+    description: "Staging table for payment data"
+    columns:
+      - name: payment_id
+        description: "Unique payment identifier"
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "Order this payment belongs to"
+      - name: payment_method
+        description: "Method used for payment"
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['credit_card', 'coupon', 'bank_transfer', 'gift_card']
+      - name: amount
+        description: "Payment amount"

@@ -1,0 +1,23 @@
+[global]
+developmentMode = false
+showWarningOnDirectExecution = false
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+runOnSave = false
+address = "localhost"
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#FF6B6B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+
+[ui]
+hideTopBar = true

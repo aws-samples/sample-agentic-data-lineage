@@ -1,0 +1,13 @@
+marquez:
+  url: "http://marquez-web.kolya.fun"
+
+paths:
+  manifest: "../dbt_redshift_openlineage/dist/colibri-manifest.json"
+
+openlineage:
+  producer: "dbt_redshift_openlineage_converter"
+  root_namespace: "s3://lh-core-kolya-landing-zone"
+  source_name: "dbt-redshift"  # 可以在这里自定义source name
+
+logging:
+  level: "INFO"

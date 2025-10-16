@@ -1,0 +1,30 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: common-nodeclass
+spec:
+  role: "${node_iam_role_name}"
+  amiFamily: AL2023
+  amiSelectorTerms:
+    - name: amazon-eks-node-al2023-*
+  blockDeviceMappings:
+    - deviceName: /dev/xvda # Not giving it a snapshot will cause it to just create a default EBS
+      ebs:
+        volumeSize: 30Gi
+        volumeType: gp3
+        iops: 6000
+        encrypted: false  # Disabling encryption to our EBS
+        deleteOnTermination: true
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: ${subnetSelectorTermsValue}
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: ${subnetSelectorTermsValue} # Keep consistent with node_security_group_tags in eks module
+  tags:
+    karpenter.sh/discovery: ${subnetSelectorTermsValue}

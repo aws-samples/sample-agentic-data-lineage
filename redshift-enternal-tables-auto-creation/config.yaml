@@ -1,0 +1,8 @@
+databases:
+  - demo_db
+  # - iceberg_db
+  # - another_db
+  # - data_lake_db
+
+# Redshift配置
+redshift_schema: spectrum_iceberg_db

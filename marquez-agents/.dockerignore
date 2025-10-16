@@ -1,0 +1,39 @@
+# 排除敏感配置文件
+config/.secrets.toml
+
+# 排除开发相关文件
+.git
+.gitignore
+# *.md  # 注释掉这行，因为需要README.md
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.DS_Store
+
+# 排除特定的md文件，但保留README.md
+design.md
+
+# 排除IDE文件
+.vscode
+.idea
+*.swp
+*.swo
+
+# 排除本地密钥文件
+/Users/kolya/Documents/pems/
+*.pem
+*.key

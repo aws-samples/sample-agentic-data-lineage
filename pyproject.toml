@@ -1,0 +1,28 @@
+[project]
+name = "monorepo-tools"
+version = "0.1.0"
+description = "Shared tooling for the monorepo"
+requires-python = ">=3.13"
+dependencies = [
+    "certifi>=2025.10.5",
+    "detect-secrets>=1.5.0",
+    "pre-commit>=4.3.0",
+]
+
+[tool.uv.workspace]
+members = [
+    "glue-openlineage",
+    "lakehouse-core",
+    "redshift-enternal-tables-auto-creation",
+    "dbt-redshift-openlineage",
+    "marquez-agents",
+    "marquez-mcp"
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py312']
+
+[tool.isort]
+profile = "black"
+line_length = 88

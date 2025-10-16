@@ -1,0 +1,52 @@
+{
+  "app": {
+    "title": "🏛️ Agentic Lineage",
+    "subtitle": "智能数据血缘分析系统 - 多代理架构",
+    "starting": "🚀 启动 Agentic Lineage For Lakehouse (Web界面)",
+    "access_url": "📍 访问地址: http://localhost:8504",
+    "web_interface": "🌐 ChatGPT风格的Web界面",
+    "multi_agent": "🤖 支持多代理协作",
+    "stopped": "👋 应用已停止",
+    "start_failed": "❌ 启动失败: {error}"
+  },
+  "system": {
+    "initializing": "🔧 正在初始化多代理系统...",
+    "init_success": "✅ 系统初始化完成！",
+    "init_failed": "❌ 系统初始化失败: {error}",
+    "running": "🟢 系统运行中",
+    "initializing_status": "⏳ 初始化中...",
+    "agent_count": "🤖 代理数: {count}",
+    "current_agent": "🤖 当前代理: {agent}",
+    "status": "🔧 状态: {status}",
+    "not_initialized": "❌ 系统未初始化，请等待系统启动完成。"
+  },
+  "ui": {
+    "system_status": "📊 系统状态",
+    "tool_calls_history": "🔧 工具调用历史",
+    "clear_chat": "🗑️ 清空对话",
+    "reinit_system": "🔄 重新初始化",
+    "chat_input_placeholder": "请输入您的问题...",
+    "timestamp": "时间: {time}",
+    "thinking": "🤔 {agent}代理正在思考...",
+    "agent_reply": "💡 {agent}代理回复：",
+    "agent_reply_label": "**{agent}代理回复：**",
+    "processing_error": "❌ 处理请求时出错: {error}",
+    "retry_message": "请尝试重新表述您的问题。",
+    "language_selector": "🌐 语言 / Language"
+  },
+  "agents": {
+    "orchestrator": "协调器",
+    "metadata": "元数据",
+    "lineage": "血缘",
+    "datacatalog": "数据目录",
+    "specialist": "专家",
+    "language_updated": "代理语言已更新为中文",
+    "language_update_failed": "代理语言更新失败"
+  },
+  "errors": {
+    "import_error": "❌ 导入错误: {error}",
+    "install_dependencies": "请确保已安装所有依赖包",
+    "startup_failed": "❌ 系统启动失败: {error}",
+    "check_config": "请检查配置文件和网络连接"
+  }
+}

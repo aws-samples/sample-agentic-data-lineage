@@ -1,0 +1,3 @@
+MARQUEZ_OPENAPI_URL = "https://raw.githubusercontent.com/MarquezProject/marquez/main/spec/openapi.yml"
+MARQUEZ_API_BASE_URL = "http://marquez.marquez.svc.cluster.local/api/v1"
+TRANSPORT = "streamable-http"

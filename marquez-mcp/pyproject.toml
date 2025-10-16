@@ -1,0 +1,19 @@
+[project]
+name = "marquez-mcp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiohttp>=3.9.0",
+    "dynaconf>=3.2.11",
+    "fastmcp>=2.12.3",
+    "httpx>=0.28.1",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
