@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# Limit GITHUB_TOKEN permissions for security
+permissions:
+  contents: read
+
 env:
   PYTHON_VERSION: "3.13"
 
