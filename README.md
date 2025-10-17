@@ -51,11 +51,23 @@ Each subproject has its own README with specific setup instructions:
 - **OpenLineage compliance** for standardized metadata exchange
 - **Real-time lineage updates** with automated synchronization
 
+![Column Lineage in Marquez](assets/images/col-lineage-in-marquez.png)
+*Column-level lineage visualization in Marquez showing data flow and transformations*
+
+![Dataset in Marquez](assets/images/dataset_in_marquez.png)
+*Dataset overview and metadata in Marquez interface*
+
 ### Intelligent Analysis
 - **AI-powered agents** for lineage health analysis
 - **Automated governance** recommendations and reporting
 - **Multi-agent collaboration** for complex analysis tasks
 - **Natural language queries** for lineage exploration
+
+![Lineage Agent Analysis](assets/images/lineage-agent-01.png)
+*AI agent performing intelligent lineage analysis and governance recommendations*
+
+![Advanced Agent Features](assets/images/lineage-agent-02.png)
+*Multi-agent collaboration for complex data lineage analysis tasks*
 
 ### Infrastructure Automation
 - **Automated external table creation** from Glue to Redshift
