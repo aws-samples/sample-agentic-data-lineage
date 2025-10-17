@@ -51,10 +51,12 @@ Each subproject has its own README with specific setup instructions:
 - **OpenLineage compliance** for standardized metadata exchange
 - **Real-time lineage updates** with automated synchronization
 
-![Column Lineage in Marquez](assets/images/col-lineage-in-marquez.png)
+<img src="assets/images/col-lineage-in-marquez.png" alt="Column Lineage in Marquez" width="600">
+
 *Column-level lineage visualization in Marquez showing data flow and transformations*
 
-![Dataset in Marquez](assets/images/dataset_in_marquez.png)
+<img src="assets/images/dataset_in_marquez.png" alt="Dataset in Marquez" width="600">
+
 *Dataset overview and metadata in Marquez interface*
 
 ### Intelligent Analysis
@@ -63,7 +65,8 @@ Each subproject has its own README with specific setup instructions:
 - **Multi-agent collaboration** for complex analysis tasks
 - **Natural language queries** for lineage exploration
 
-![Advanced Agent Features](assets/images/lineage-agent-02.png)
+<img src="assets/images/lineage-agent-02.png" alt="Advanced Agent Features" width="600">
+
 *Multi-agent collaboration for complex data lineage analysis tasks*
 
 ### Infrastructure Automation
