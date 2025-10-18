@@ -172,9 +172,16 @@ Each subproject follows its own development practices. Please refer to individua
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT-0 License - see the [LICENSE](LICENSE) file for details.
 
-All subprojects are covered under the same MIT License unless otherwise specified.
+All subprojects are covered under the same MIT-0 License unless otherwise specified.
+
+### Third-Party Licenses
+
+This project uses [OpenLineage](https://openlineage.io/), which is licensed under the Apache License 2.0. 
+- OpenLineage Copyright © The OpenLineage Authors
+- Licensed under the Apache License, Version 2.0
+- Full license text: https://github.com/OpenLineage/OpenLineage/blob/main/LICENSE
 
 ## 🔗 Related Resources
 
