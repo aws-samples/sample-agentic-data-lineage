@@ -5,7 +5,7 @@ Data lakehouse integration core project
 ## Project Structure
 
 ```
-├── iac-[ACCOUNT_ID]-us-west-2/  # AWS Infrastructure code (Terraform)
+├── iac-[ACCOUNT_ID]-[AWS_REGION]/  # AWS Infrastructure code (Terraform)
 ├── script/                      # Script files
 ├── test/                       # Test files and configuration
 ├── pyproject.toml              # Python project configuration
@@ -30,7 +30,7 @@ pre-commit install
 
 ```bash
 # Enter Terraform directory
-cd iac-[ACCOUNT_ID]-us-west-2/
+cd iac-[ACCOUNT_ID]-[AWS_REGION]/
 
 # Generate terraform.tfvars from current AWS profile
 ./generate_tfvars.sh

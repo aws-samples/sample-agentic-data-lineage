@@ -32,16 +32,75 @@ source .venv/bin/activate
 uv sync --active
 ```
 
-### 2. Individual Project Setup
+### 2. Installation Order & Setup
 
-Each subproject has its own README with specific setup instructions:
+Follow this step-by-step installation order to set up the complete data lineage solution:
 
-- **[dbt-redshift-openlineage](./dbt-redshift-openlineage/README.md)**: dbt data transformation with column-level lineage
-- **[marquez-agents](./marquez-agents/README.md)**: AI-powered lineage analysis and governance
-- **[marquez-mcp](./marquez-mcp/README.md)**: MCP server for Marquez integration
+#### Step 1: Marquez MCP Server Preparation
+```bash
+# Prepare Marquez MCP server and build Docker image
+cd marquez-mcp/
+# Follow marquez-mcp/README.md for MCP server setup and image building
+```
+This prepares the MCP (Model Context Protocol) interface for Marquez integration and builds the required Docker image.
+
+#### Step 2: Marquez Agents Preparation
+```bash
+# Prepare intelligent lineage analysis agents and build Docker image
+cd marquez-agents/
+# Follow marquez-agents/README.md for agent setup and image building
+```
+This prepares AI-powered agents for automated lineage analysis and governance and builds the required Docker image.
+
+#### Step 3: Core Infrastructure Setup
+```bash
+# Deploy lakehouse-core infrastructure
+cd lakehouse-core/
+# Follow lakehouse-core/README.md for detailed setup
+```
+This sets up the foundational AWS infrastructure including Marquez, Karpenter, and Kubernetes environment.
+
+#### Step 4: Glue OpenLineage Integration
+```bash
+# Deploy Glue OpenLineage infrastructure
+cd glue-openlineage/
+# Follow glue-openlineage/README.md for detailed setup
+```
+This configures AWS Glue with OpenLineage integration for metadata extraction.
+
+#### Step 5: Manual Glue Database & Job Setup
+After infrastructure deployment, manually perform these steps in AWS Console:
+1. **Create test database** in AWS Glue Data Catalog
+2. **Run Glue jobs** to populate metadata and generate lineage events
+3. **Verify data catalog** entries and lineage data flow
+
+#### Step 6: External Table Mapping
+```bash
+# Set up automated external table creation
+cd redshift-enternal-tables-auto-creation/
+# Follow setup instructions to map Glue tables to Redshift
+```
+This creates external tables in Redshift based on Glue Data Catalog entries.
+
+#### Step 7: dbt Project Execution
+```bash
+# Run dbt transformations with lineage tracking
+cd dbt-redshift-openlineage/
+# Execute dbt models to generate column-level lineage
+dbt run
+```
+This generates detailed column-level lineage through dbt transformations.
+
+### Individual Project Documentation
+
+Each subproject has its own README with detailed setup instructions:
+
+- **[lakehouse-core](./lakehouse-core/README.md)**: Core infrastructure and utilities
 - **[glue-openlineage](./glue-openlineage/README.md)**: AWS Glue metadata extraction
 - **[redshift-enternal-tables-auto-creation](./redshift-enternal-tables-auto-creation/README.md)**: Automated Redshift external table management
-- **[lakehouse-core](./lakehouse-core/README.md)**: Core infrastructure and utilities
+- **[dbt-redshift-openlineage](./dbt-redshift-openlineage/README.md)**: dbt data transformation with column-level lineage
+- **[marquez-mcp](./marquez-mcp/README.md)**: MCP server for Marquez integration
+- **[marquez-agents](./marquez-agents/README.md)**: AI-powered lineage analysis and governance
 
 ## 🎯 Key Features
 
@@ -110,14 +169,6 @@ Each subproject has its own README with specific setup instructions:
 - **API Protocol**: MCP (Model Context Protocol)
 - **Configuration**: TOML, YAML, environment variables
 
-## 🏃‍♂️ Getting Started Workflow
-
-1. **Set up infrastructure** using lakehouse-core
-2. **Configure data sources** in AWS Glue
-3. **Create dbt transformations** with lineage tracking
-4. **Deploy Marquez** for lineage visualization
-5. **Launch AI agents** for intelligent analysis
-6. **Automate external tables** for cross-system access
 
 ## 📊 Use Cases
 
