@@ -10,6 +10,3 @@ REDSHIFT_PASSWORD=""
 # Marquez
 MARQUEZ_URL="http://marquez-web.kolya.fun"
 MARQUEZ_API_KEY=""
-
-
-
