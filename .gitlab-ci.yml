@@ -40,7 +40,7 @@ code_quality:
 # Terraform Formatting (separate job with Terraform installed)
 terraform_format:
   stage: test
-  image: 
+  image:
     name: hashicorp/terraform:latest
     entrypoint: [""]
   before_script:
@@ -78,7 +78,7 @@ secret_detection:
       wget -O gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION#v}_linux_x64.tar.gz"
       tar -xzf gitleaks.tar.gz
       chmod +x gitleaks
-      
+
       # Scan current files only (not git history)
       ./gitleaks detect --source . --no-git --verbose --config .gitleaks.toml
   rules:

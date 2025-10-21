@@ -8,12 +8,8 @@ REDSHIFT_PASSWORD=""
 
 
 # Marquez
-MARQUEZ_URL=""
+MARQUEZ_URL="http://marquez-web.kolya.fun"
 MARQUEZ_API_KEY=""
 
 
-# AWS
-AWS_DEFAULT_REGION=""
 
-# Glue
-GLUE_DATABASE=""

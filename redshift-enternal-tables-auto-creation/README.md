@@ -40,6 +40,12 @@ MARQUEZ_URL=""             # e.g. http://your-marquez-server:5000
 MARQUEZ_API_KEY=""         # Optional
 ```
 
+**AWS Configuration**: The tool uses boto3 to access AWS Glue. Ensure AWS credentials and region are configured via:
+- AWS CLI: `aws configure`
+- Environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
+- IAM roles (if running on EC2)
+- AWS profiles: Use `--aws-profile` parameter
+
 ### 3. Configuration File
 
 Create `config.yaml` configuration file:
@@ -62,22 +68,28 @@ redshift_schema: spectrum_iceberg_db
 **Note**: This tool requires manual triggering. For production automation, consider using S3 event notifications to trigger AWS Lambda functions.
 
 ```bash
-# Use default configuration file (config.yaml)
+# Basic usage (uses .env configuration for Marquez)
 python3 glue_redshift_lineage_converter.py \
-  --iam-role arn:aws:iam::[ACCOUNT_ID]:role/glue-openlineage-redshift-spectrum-role \
-  --marquez-url http://marquez.example.com
+  --iam-role arn:aws:iam::612674025488:role/glue-openlineage-redshift-spectrum-role
 
 # Use custom configuration file
 python3 glue_redshift_lineage_converter.py \
   --config my_config.yaml \
-  --iam-role arn:aws:iam::123456789012:role/MyRole
+  --iam-role arn:aws:iam::612674025488:role/glue-openlineage-redshift-spectrum-role
 
 # Override redshift-schema in configuration file
 python3 glue_redshift_lineage_converter.py \
   --redshift-schema my_custom_schema \
-  --iam-role arn:aws:iam::123456789012:role/MyRole \
-  --marquez-url http://marquez.example.com
+  --iam-role arn:aws:iam::612674025488:role/glue-openlineage-redshift-spectrum-role
+
+# Override Marquez settings (optional, if different from .env)
+python3 glue_redshift_lineage_converter.py \
+  --iam-role arn:aws:iam::612674025488:role/glue-openlineage-redshift-spectrum-role \
+  --marquez-url http://different-marquez.example.com \
+  --marquez-api-key custom-api-key
 ```
+
+**Parameter Priority**: Command line arguments override environment variables (.env file).
 
 ### Production Automation (Optional)
 

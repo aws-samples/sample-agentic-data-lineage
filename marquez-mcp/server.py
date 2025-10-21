@@ -6,8 +6,6 @@ import yaml
 from fastmcp import FastMCP
 from fastmcp.server.openapi import MCPType, RouteMap
 from settings import settings
-from starlette.requests import Request
-from starlette.responses import JSONResponse
 
 # Configure logging
 logging.basicConfig(
