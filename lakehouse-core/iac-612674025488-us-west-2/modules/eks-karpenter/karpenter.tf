@@ -9,8 +9,11 @@ module "karpenter" {
   node_iam_role_name            = "${var.project_name_alias}-${var.workspace}-${var.account}-${var.region}-kpnodeiamrole"
   node_iam_role_use_name_prefix = false
   node_iam_role_additional_policies = {
+    AmazonEKSWorkerNodePolicy          = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+    AmazonEKS_CNI_Policy               = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
     AmazonEC2ContainerRegistryReadOnly = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
     AmazonEBSCSIDriverPolicy           = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+    AmazonSSMManagedInstanceCore       = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   }
 
   iam_role_name            = "karpenterc-ontroller-${var.workspace}-${var.account}-${var.region}"
