@@ -22,6 +22,7 @@ spec:
       - name: marquez-agent
         # image: public.ecr.aws/f9c0z1d3/marquez-agent:latest
         image: ${ecr_repository_url}/marquez-agent:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8504
           name: http
@@ -85,13 +86,13 @@ spec:
             secretKeyRef:
               name: marquez-agent-secrets
               key: REDSHIFT_USERNAME
-              optional: true
+              optional: false
         - name: DYNACONF_REDSHIFT_PASSWORD
           valueFrom:
             secretKeyRef:
               name: marquez-agent-secrets
               key: REDSHIFT_PASSWORD
-              optional: true
+              optional: false
 
         # Resource limits
         resources:

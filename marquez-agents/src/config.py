@@ -12,7 +12,7 @@ config_dir = project_root / "config"
 
 # Initialize dynaconf settings
 settings = Dynaconf(
-    envvar_prefix="AWS_STRANDS",
+    envvar_prefix="DYNACONF",
     settings_files=[
         str(config_dir / "settings.toml"),
         str(config_dir / "settings.local.toml"),

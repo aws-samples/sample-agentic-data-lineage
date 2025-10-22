@@ -98,14 +98,15 @@ Each subproject has its own README with detailed setup instructions:
 - **[lakehouse-core](./lakehouse-core/README.md)**: Core infrastructure and utilities
 - **[glue-openlineage](./glue-openlineage/README.md)**: AWS Glue metadata extraction
 - **[redshift-enternal-tables-auto-creation](./redshift-enternal-tables-auto-creation/README.md)**: Automated Redshift external table management
-- **[dbt-redshift-openlineage](./dbt-redshift-openlineage/README.md)**: dbt data transformation with column-level lineage
+- **[dbt-redshift-openlineage](./dbt-redshift-openlineage/README.md)**: dbt data transformation with advanced column-level lineage and multi-column dependency detection
 - **[marquez-mcp](./marquez-mcp/README.md)**: MCP server for Marquez integration
 - **[marquez-agents](./marquez-agents/README.md)**: AI-powered lineage analysis and governance
 
 ## 🎯 Key Features
 
 ### Data Lineage Tracking
-- **Column-level lineage** through dbt transformations
+- **Advanced column-level lineage** with multi-column dependency detection through dbt transformations
+- **Complex SQL pattern recognition** for CASE WHEN, aggregations, and conditional logic
 - **Cross-system lineage** between AWS Glue, Redshift, and S3
 - **OpenLineage compliance** for standardized metadata exchange
 - **Real-time lineage updates** with automated synchronization
