@@ -178,16 +178,16 @@ class MarquezSync:
     def build_column_lineage(self, target_node_id: str) -> Dict[str, Any]:
         """
         Build comprehensive column lineage from manifest edges and SQL analysis.
-        
+
         This method constructs column-level lineage by:
         1. Processing explicit lineage edges from the manifest
         2. Inferring missing lineage from compiled SQL code
         3. Handling complex transformations (aggregations, CASE WHEN, etc.)
         4. Identifying multiple source column dependencies
-        
+
         Args:
             target_node_id: The target node ID to build lineage for
-            
+
         Returns:
             Dictionary mapping target columns to their lineage information
         """
@@ -218,12 +218,16 @@ class MarquezSync:
 
             # Handle wildcard columns - infer from SQL
             if source_column == "*":
-                inferred_column = self._infer_source_column(target_column, compiled_code)
+                inferred_column = self._infer_source_column(
+                    target_column, compiled_code
+                )
                 if inferred_column:
                     source_column = inferred_column
                 else:
-                    logger.warning(f"Could not infer source column for wildcard dependency: "
-                                 f"{target_column} <- {source_name}.*")
+                    logger.warning(
+                        f"Could not infer source column for wildcard dependency: "
+                        f"{target_column} <- {source_name}.*"
+                    )
                     continue
 
             # Add source field to lineage
@@ -232,7 +236,7 @@ class MarquezSync:
                 "name": source_name,
                 "field": source_column,
             }
-            
+
             # Avoid duplicate input fields
             if input_field not in column_lineage[target_column]["inputFields"]:
                 column_lineage[target_column]["inputFields"].append(input_field)
@@ -241,28 +245,34 @@ class MarquezSync:
         target_columns = target_info.get("columns", {}).keys()
         for target_column in target_columns:
             if target_column not in column_lineage:
-                inferred_sources = self._infer_column_dependencies(target_column, compiled_code, target_node_id)
+                inferred_sources = self._infer_column_dependencies(
+                    target_column, compiled_code, target_node_id
+                )
                 if inferred_sources:
                     column_lineage[target_column] = {
                         "inputFields": inferred_sources,
-                        "transformationType": self._determine_transformation_type(target_column, compiled_code),
+                        "transformationType": self._determine_transformation_type(
+                            target_column, compiled_code
+                        ),
                     }
 
         return column_lineage
 
-    def _infer_column_dependencies(self, target_column: str, compiled_code: str, target_node_id: str) -> List[Dict[str, str]]:
+    def _infer_column_dependencies(
+        self, target_column: str, compiled_code: str, target_node_id: str
+    ) -> List[Dict[str, str]]:
         """
         Infer all source column dependencies for a target column from SQL code.
-        
+
         This method attempts to identify all source columns that contribute to a target column,
         particularly useful for complex expressions like CASE WHEN statements that depend on
         multiple source columns.
-        
+
         Args:
             target_column: The target column to analyze
             compiled_code: The compiled SQL code
             target_node_id: The target node ID for context
-            
+
         Returns:
             List of input field dictionaries representing source dependencies
         """
@@ -270,107 +280,131 @@ class MarquezSync:
             return []
 
         input_fields = []
-        normalized_sql = re.sub(r'\s+', ' ', compiled_code.strip())
-        
+        normalized_sql = re.sub(r"\s+", " ", compiled_code.strip())
+
         # Pattern for SUM(CASE WHEN condition_col = 'value' THEN amount_col ELSE 0 END)
-        sum_case_pattern = rf'sum\s*\(\s*case\s+when\s+(\w+)\s*=.*?then\s+(\w+).*?\)\s+as\s+{re.escape(target_column)}\b'
+        sum_case_pattern = rf"sum\s*\(\s*case\s+when\s+(\w+)\s*=.*?then\s+(\w+).*?\)\s+as\s+{re.escape(target_column)}\b"
         match = re.search(sum_case_pattern, normalized_sql, re.IGNORECASE | re.DOTALL)
         if match:
             condition_col = match.group(1)
             amount_col = match.group(2)
-            
+
             # Find source tables for these columns
-            source_tables = self._find_source_tables_for_columns([condition_col, amount_col], target_node_id)
-            
+            source_tables = self._find_source_tables_for_columns(
+                [condition_col, amount_col], target_node_id
+            )
+
             for col in [condition_col, amount_col]:
                 source_table = source_tables.get(col)
                 if source_table:
-                    input_fields.append({
-                        "namespace": ROOT_NAMESPACE,
-                        "name": source_table,
-                        "field": col,
-                    })
-            
+                    input_fields.append(
+                        {
+                            "namespace": ROOT_NAMESPACE,
+                            "name": source_table,
+                            "field": col,
+                        }
+                    )
+
             return input_fields
-        
+
         # Fallback to single column inference
         inferred_column = self._infer_source_column(target_column, compiled_code)
         if inferred_column:
-            source_tables = self._find_source_tables_for_columns([inferred_column], target_node_id)
+            source_tables = self._find_source_tables_for_columns(
+                [inferred_column], target_node_id
+            )
             source_table = source_tables.get(inferred_column)
             if source_table:
-                input_fields.append({
-                    "namespace": ROOT_NAMESPACE,
-                    "name": source_table,
-                    "field": inferred_column,
-                })
-        
+                input_fields.append(
+                    {
+                        "namespace": ROOT_NAMESPACE,
+                        "name": source_table,
+                        "field": inferred_column,
+                    }
+                )
+
         return input_fields
 
-    def _find_source_tables_for_columns(self, columns: List[str], target_node_id: str) -> Dict[str, str]:
+    def _find_source_tables_for_columns(
+        self, columns: List[str], target_node_id: str
+    ) -> Dict[str, str]:
         """
         Find source tables that contain the specified columns.
-        
+
         Args:
             columns: List of column names to find sources for
             target_node_id: The target node ID for context
-            
+
         Returns:
             Dictionary mapping column names to their source table names
         """
         column_to_table = {}
         target_info = self.manifest["nodes"].get(target_node_id, {})
-        
+
         # Get dependencies of the target node
         depends_on = target_info.get("dependsOn", [])
-        
+
         for dep_node_id in depends_on:
             dep_info = self.manifest["nodes"].get(dep_node_id, {})
             dep_columns = dep_info.get("columns", {}).keys()
             dep_table_name = f"{dep_info.get('database', '')}.{dep_info.get('schema', '')}.{dep_info.get('name', '')}"
-            
+
             for column in columns:
                 if column in dep_columns:
                     column_to_table[column] = dep_table_name
-        
+
         return column_to_table
 
-    def _determine_transformation_type(self, target_column: str, compiled_code: str) -> str:
+    def _determine_transformation_type(
+        self, target_column: str, compiled_code: str
+    ) -> str:
         """
         Determine the type of transformation applied to create the target column.
-        
+
         Args:
             target_column: The target column name
             compiled_code: The compiled SQL code
-            
+
         Returns:
             Transformation type string
         """
         if not compiled_code:
             return "IDENTITY"
-        
-        normalized_sql = re.sub(r'\s+', ' ', compiled_code.strip())
-        
+
+        normalized_sql = re.sub(r"\s+", " ", compiled_code.strip())
+
         # Check for aggregation functions
-        if re.search(rf'(sum|count|avg|min|max)\s*\(.*?\)\s+as\s+{re.escape(target_column)}\b', 
-                    normalized_sql, re.IGNORECASE):
+        if re.search(
+            rf"(sum|count|avg|min|max)\s*\(.*?\)\s+as\s+{re.escape(target_column)}\b",
+            normalized_sql,
+            re.IGNORECASE,
+        ):
             return "AGGREGATION"
-        
+
         # Check for CASE WHEN
-        if re.search(rf'case\s+when.*?as\s+{re.escape(target_column)}\b', 
-                    normalized_sql, re.IGNORECASE | re.DOTALL):
+        if re.search(
+            rf"case\s+when.*?as\s+{re.escape(target_column)}\b",
+            normalized_sql,
+            re.IGNORECASE | re.DOTALL,
+        ):
             return "CONDITIONAL"
-        
+
         # Check for arithmetic operations
-        if re.search(rf'\w+\s*[+\-*/]\s*\d+\s+as\s+{re.escape(target_column)}\b', 
-                    normalized_sql, re.IGNORECASE):
+        if re.search(
+            rf"\w+\s*[+\-*/]\s*\d+\s+as\s+{re.escape(target_column)}\b",
+            normalized_sql,
+            re.IGNORECASE,
+        ):
             return "ARITHMETIC"
-        
+
         # Check for function calls
-        if re.search(rf'\w+\(\w+\)\s+as\s+{re.escape(target_column)}\b', 
-                    normalized_sql, re.IGNORECASE):
+        if re.search(
+            rf"\w+\(\w+\)\s+as\s+{re.escape(target_column)}\b",
+            normalized_sql,
+            re.IGNORECASE,
+        ):
             return "FUNCTION"
-        
+
         return "IDENTITY"
 
     def _infer_source_column(
@@ -378,21 +412,21 @@ class MarquezSync:
     ) -> Optional[str]:
         """
         Infer source column from SQL code using comprehensive pattern matching.
-        
+
         This method attempts to identify the source column that generates a target column
         by analyzing the compiled SQL code. It handles various SQL patterns including:
         - Direct column aliasing (source_col as target_col)
         - Function transformations (func(source_col) as target_col)
         - CASE WHEN expressions with multiple source dependencies
         - Arithmetic operations and complex expressions
-        
+
         Args:
             target_column: The target column name to find the source for
             compiled_code: The compiled SQL code to analyze
-            
+
         Returns:
             The inferred source column name, or None if no clear mapping can be determined
-            
+
         Note: For complex expressions involving multiple source columns (e.g., CASE WHEN
         statements, arithmetic operations), this method may not capture all dependencies.
         A more sophisticated AST-based approach would be needed for complete accuracy.
@@ -401,51 +435,55 @@ class MarquezSync:
             return None
 
         # Normalize SQL for better pattern matching
-        normalized_sql = re.sub(r'\s+', ' ', compiled_code.strip())
-        
+        normalized_sql = re.sub(r"\s+", " ", compiled_code.strip())
+
         # Pattern 1: Direct aliasing - "source_col as target_col"
-        direct_alias_pattern = rf'(\w+)\s+as\s+{re.escape(target_column)}\b'
+        direct_alias_pattern = rf"(\w+)\s+as\s+{re.escape(target_column)}\b"
         match = re.search(direct_alias_pattern, normalized_sql, re.IGNORECASE)
         if match:
             return match.group(1)
-        
+
         # Pattern 2: Function with aliasing - "func(source_col) as target_col"
-        function_alias_pattern = rf'\w+\((\w+)\)\s+as\s+{re.escape(target_column)}\b'
+        function_alias_pattern = rf"\w+\((\w+)\)\s+as\s+{re.escape(target_column)}\b"
         match = re.search(function_alias_pattern, normalized_sql, re.IGNORECASE)
         if match:
             return match.group(1)
-        
+
         # Pattern 3: Arithmetic operations - "source_col / 100 as target_col"
-        arithmetic_pattern = rf'(\w+)\s*[+\-*/]\s*\d+\s+as\s+{re.escape(target_column)}\b'
+        arithmetic_pattern = (
+            rf"(\w+)\s*[+\-*/]\s*\d+\s+as\s+{re.escape(target_column)}\b"
+        )
         match = re.search(arithmetic_pattern, normalized_sql, re.IGNORECASE)
         if match:
             return match.group(1)
-        
+
         # Pattern 4: CASE WHEN expressions - extract first source column mentioned
         # Note: This is a simplified approach. CASE WHEN may depend on multiple columns
-        case_when_pattern = rf'case\s+when\s+(\w+)\s*=.*?then\s+(\w+).*?as\s+{re.escape(target_column)}\b'
+        case_when_pattern = rf"case\s+when\s+(\w+)\s*=.*?then\s+(\w+).*?as\s+{re.escape(target_column)}\b"
         match = re.search(case_when_pattern, normalized_sql, re.IGNORECASE | re.DOTALL)
         if match:
             # For CASE WHEN, we return the condition column as primary dependency
             # This is a simplification - actual dependency includes both condition and value columns
             return match.group(1)
-        
+
         # Pattern 5: SUM with CASE WHEN - "sum(case when condition_col = 'value' then amount_col else 0 end)"
-        sum_case_pattern = rf'sum\s*\(\s*case\s+when\s+(\w+)\s*=.*?then\s+(\w+).*?\)\s+as\s+{re.escape(target_column)}\b'
+        sum_case_pattern = rf"sum\s*\(\s*case\s+when\s+(\w+)\s*=.*?then\s+(\w+).*?\)\s+as\s+{re.escape(target_column)}\b"
         match = re.search(sum_case_pattern, normalized_sql, re.IGNORECASE | re.DOTALL)
         if match:
             # For aggregated CASE WHEN, return the value column as it's the primary data source
             # Note: This misses the condition column dependency
             return match.group(2)
-        
+
         # Fallback: Check if target column exists directly in the SQL without aliasing
-        if re.search(rf'\b{re.escape(target_column)}\b', normalized_sql, re.IGNORECASE):
+        if re.search(rf"\b{re.escape(target_column)}\b", normalized_sql, re.IGNORECASE):
             return target_column
-        
+
         # Final fallback: Return None to indicate uncertain lineage
         # This is more accurate than guessing with hardcoded mappings
-        logger.warning(f"Could not infer source column for '{target_column}' from SQL. "
-                      f"Manual lineage definition may be required.")
+        logger.warning(
+            f"Could not infer source column for '{target_column}' from SQL. "
+            f"Manual lineage definition may be required."
+        )
         return None
 
     def create_openlineage_event(
